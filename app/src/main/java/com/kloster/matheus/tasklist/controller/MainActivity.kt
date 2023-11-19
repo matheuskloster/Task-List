@@ -1,5 +1,6 @@
 package com.kloster.matheus.tasklist.controller
 
+import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -27,6 +28,18 @@ class MainActivity : AppCompatActivity() {
             binding.rcvTasks.layoutManager = this
             adapter = TaskAdapter(DataStore.tasks).apply { binding.rcvTasks.adapter = this }
 
+
+            binding.btnAdd.setOnClickListener {
+                Intent(this@MainActivity, ManagerActivity::class.java).apply {
+                    startActivity(this)
+                }
+            }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+
+        adapter.notifyDataSetChanged()
     }
 }
