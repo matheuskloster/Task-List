@@ -1,29 +1,53 @@
 package com.kloster.matheus.tasklist.model
 
+import android.content.Context
+import android.util.Log
+
 object DataStore {
 
-    val tasks: MutableList<Task> = arrayListOf();
+    var tasks: MutableList<Task> = arrayListOf()
 
-    init {
-        tasks.add(Task("Lavar a louça"))
-        tasks.add(Task("Estender roupa"))
-        tasks.add(Task("Tirar o lixo"))
+    private var database: Database? = null
+
+
+    fun setContext(context: Context) {
+        database = Database(context)
+        database?.let {db ->
+            tasks = db.getAllTasks()
+        }
     }
+
 
     fun getTask(position: Int): Task {
         return tasks[position]
     }
 
     fun editTask(position: Int, task: Task) {
-        tasks.set(position, task)
+        task.id = getTask(position).id
+        val count = database?.editTask(task) ?: return
+        if (count > 0) {
+            tasks[position] = task
+        }
     }
 
     fun addTask(task: Task) {
-        tasks.add(task)
+        val id = database?.addTask(task) ?: return
+
+        if (id > 0) {
+            task.id = id
+            tasks.add(task)
+        } else {
+            Log.d("TasksAppDB", "Falha ao adicionar a tarefa, id retornado pelo DB com problema")
+        }
+
     }
 
     fun deleteTask(position: Int) {
-        tasks.removeAt(position)
+        val task = getTask(position)
+        val count = database?.removeTask(task) ?: return
+        if (count > 0) {
+            tasks.removeAt(position)
+        }
     }
 
 }

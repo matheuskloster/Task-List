@@ -1,13 +1,12 @@
 package com.kloster.matheus.tasklist.controller
 
 import android.content.Intent
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.provider.ContactsContract.Data
 import android.view.GestureDetector
 import android.view.MotionEvent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.OnItemTouchListener
@@ -29,13 +28,16 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        DataStore.setContext(this)
         configureRcv()
         configureFab()
+        configureFabTasksCompletadas()
         configureGesture()
         configureRecycleViewEvents()
 
 
     }
+
 
     private fun configureRcv(){
         //conectando a recycle-view com o adapter
@@ -53,28 +55,46 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-    private fun configureGesture() {
-         gesture = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener(){
-             override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
 
-                 binding.rcvTasks.findChildViewUnder(e.x, e.y).run {
-                     this?.let { view ->
-                         val position = binding.rcvTasks.getChildAdapterPosition(view)
-                            Intent(this@MainActivity, ManagerActivity::class.java).run {
-                                putExtra("position", position)
-                                editTaskForResult.launch(this)
-                            }
-                         }
+    private fun configureFabTasksCompletadas() {
+        binding.fabMenu.setOnClickListener {
+            Intent(this@MainActivity, DoneTasksActivity::class.java).apply {
+                loadDoneTasksActivityForResult.launch(this)
+            }
+        }
+    }
+
+    private fun configureGesture() {
+        gesture = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+
+                binding.rcvTasks.findChildViewUnder(e.x, e.y).run {
+                    this?.let { view ->
+                        val position = binding.rcvTasks.getChildAdapterPosition(view)
+                        checkForTaskStatusAndEdit(position)
+                    }
                      }
                  return super.onSingleTapConfirmed(e)
              }
 
-             override fun onLongPress(e: MotionEvent) {
+            private fun checkForTaskStatusAndEdit(position: Int) {
+                val selectedTask = DataStore.getTask(position)
+                if (selectedTask.status == "CONCLUÍDA") {
+                    showSnackMessage("A tarefa já está concluída, não pode ser modificada")
+                } else {
+                    Intent(this@MainActivity, ManagerActivity::class.java).run {
+                        putExtra("position", position)
+                        editTaskForResult.launch(this)
+                    }
+                }
+            }
+
+            override fun onLongPress(e: MotionEvent) {
                  super.onLongPress(e)
 
                  binding.rcvTasks.findChildViewUnder(e.x, e.y).run {
                      this?.let {view ->
-                         val position = binding.rcvTasks.getChildAdapterPosition(view).apply {
+                          binding.rcvTasks.getChildAdapterPosition(view).apply {
                              val task = DataStore.getTask(this)
                              AlertDialog.Builder(this@MainActivity).run {
                                  setMessage("Quer remover essa tarefa?")
@@ -123,10 +143,10 @@ class MainActivity : AppCompatActivity() {
     //Retorno da Activiy Manager
     private val addTaskForResult = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
-            adapter.notifyDataSetChanged();
             result.data?.let { intent ->
-              showSnackMessage("Tarefa ${intent.getStringExtra("task")} adicionada com sucesso!")
+                showSnackMessage("Tarefa ${intent.getStringExtra("task")} adicionada com sucesso!")
             }
+            adapter.notifyDataSetChanged();
         } else {
             showSnackMessage("Operação cancelada com sucesso!")
         }
@@ -135,13 +155,31 @@ class MainActivity : AppCompatActivity() {
 
     private val editTaskForResult = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
-            adapter.notifyDataSetChanged();
             result.data?.let { intent ->
-                showSnackMessage("Tarefa ${intent.getStringExtra("task")} alterada com sucesso!")
+                if (intent.getStringExtra("comando").equals("concluir")) {
+                    showSnackMessage("Tarefa ${intent.getStringExtra("task")} CONCLUIDA com sucesso!")
+                } else {
+                    showSnackMessage("Tarefa ${intent.getStringExtra("task")} alterada com sucesso!")
+                }
+
             }
+            adapter.notifyDataSetChanged();
         } else {
             showSnackMessage("Edição cancelada com sucesso!")
         }
 
     }
+
+    private val loadDoneTasksActivityForResult =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == RESULT_OK) {
+                result.data?.let { intent ->
+                }
+                showSnackMessage("Notificando que o data set mudou")
+                adapter.notifyDataSetChanged();
+            } else {
+                adapter.notifyDataSetChanged()
+            }
+        }
+
 }
